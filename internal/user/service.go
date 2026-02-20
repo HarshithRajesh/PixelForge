@@ -26,7 +26,14 @@ func (s *userService) SignUp(user *models.User) error {
 	if user.ConfirmPassword != user.Password {
 		return errors.New("password are not matching")
 	}
-	err := s.repo.CreateUser(user)
+	existing, err := s.repo.GetUser(user.Email)
+	if existing {
+		return errors.New("user exists")
+	} else if err != nil {
+		return err
+	}
+
+	err = s.repo.CreateUser(user)
 	if err != nil {
 		return err
 	}
