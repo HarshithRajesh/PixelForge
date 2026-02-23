@@ -2,6 +2,8 @@ package handler_test
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -46,13 +48,71 @@ func TestSignUpHandler_InvalidBody(t *testing.T) {
 	mockService.AssertNotCalled(t, "SignUp")
 }
 
-func TestSignUpHandler (t *testing.T){
-	tests := []struct{
-		name string,
-		body string,
-		mockService func(m *MockUserService){
-	},
-	expectedStatus: http.StatusBadRequest,
+func TestSignUpHandler_ServiceFails(t *testing.T) {
+	// ARRANGE
+	mockService := new(MockUserService)
+	handler := handler.NewUserHandler(mockService)
+	router := setupRouter(handler)
 
+	// valid JSON body
+	body := models.User{
+		Email:           "alice@example.com",
+		Password:        "abc123",
+		ConfirmPassword: "abc123",
 	}
+	jsonBody, _ := json.Marshal(body)
+
+	// tell mock: when SignUp is called, return an error
+	mockService.On("SignUp", mock.Anything).Return(errors.New("user exists"))
+
+	req := httptest.NewRequest(http.MethodPost, "/signup", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// ACT
+	router.ServeHTTP(w, req)
+
+	// ASSERT
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	// check the response body contains the error
+	var response map[string]string
+	json.NewDecoder(w.Body).Decode(&response)
+	assert.Equal(t, "user exists", response["error"])
+
+	mockService.AssertExpectations(t)
+}
+
+func TestSignUpHandler_Success(t *testing.T) {
+	// ARRANGE
+	mockService := new(MockUserService)
+	handler := handler.NewUserHandler(mockService)
+	router := setupRouter(handler)
+
+	body := models.User{
+		Email:           "alice@example.com",
+		Password:        "abc123",
+		ConfirmPassword: "abc123",
+	}
+	jsonBody, _ := json.Marshal(body)
+
+	// tell mock: SignUp succeeds
+	mockService.On("SignUp", mock.Anything).Return(nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/signup", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// ACT
+	router.ServeHTTP(w, req)
+
+	// ASSERT
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// check the success message
+	var response map[string]string
+	json.NewDecoder(w.Body).Decode(&response)
+	assert.Equal(t, "User Create Successfully", response["message"])
+
+	mockService.AssertExpectations(t)
 }
