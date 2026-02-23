@@ -3,13 +3,16 @@ package user
 
 import (
 	"errors"
+	"log"
 
+	"github.com/HarshithRajesh/PixelForge/internal/domain"
 	"github.com/HarshithRajesh/PixelForge/internal/models"
 	"github.com/HarshithRajesh/PixelForge/internal/repository"
 )
 
 type UserService interface {
 	SignUp(user *models.User) error
+	Login(user *models.Login) error
 }
 
 type userService struct {
@@ -26,16 +29,37 @@ func (s *userService) SignUp(user *models.User) error {
 	if user.ConfirmPassword != user.Password {
 		return errors.New("password are not matching")
 	}
-	existing, err := s.repo.GetUser(user.Email)
-	if existing {
-		return errors.New("user exists")
-	} else if err != nil {
+	existingUser, err := s.repo.GetUser(user.Email)
+	if err != nil {
+		log.Printf("database error: %v", err)
 		return err
 	}
 
+	if existingUser != nil {
+		log.Print("user already exists")
+		return errors.New("user already exists")
+	}
+	user.Password, err = domain.HashPassword(user.Password)
+	if err != nil {
+		return err
+	}
 	err = s.repo.CreateUser(user)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func (s *userService) Login(user *models.Login) error {
+	var existingUser *models.User
+	existingUser, err := s.repo.GetUser(user.Email)
+	if existingUser == nil {
+		return errors.New("user doesnt exist")
+	} else if err != nil {
+		return err
+	}
+	if !domain.CheckPasswordHash(user.Password, existingUser.Password) {
+		return errors.New("password did not match")
 	}
 	return nil
 }

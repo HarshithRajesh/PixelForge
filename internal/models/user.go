@@ -10,6 +10,6 @@ type User struct {
 }
 
 type Login struct {
-	Email    string `gorm:"unique;not null"`
-	Password string `gorm:"not null"`
+	Email    string
+	Password string
 }

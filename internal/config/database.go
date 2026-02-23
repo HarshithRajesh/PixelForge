@@ -23,8 +23,12 @@ func ConnectDB() (*gorm.DB, error) {
 	if dsn == "" {
 		return nil, fmt.Errorf("DATABASE_URL is empty")
 	}
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true, // This is the CRITICAL line for Supabase
+	}), &gorm.Config{
+		PrepareStmt: false, // Also keep this false as a backup
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to the database %v", err)
 	}

@@ -10,7 +10,7 @@ import (
 
 type UserRepository interface {
 	CreateUser(user *models.User) error
-	GetUser(email string) (bool, error)
+	GetUser(email string) (*models.User, error)
 }
 
 type userRepository struct {
@@ -25,14 +25,14 @@ func (r *userRepository) CreateUser(user *models.User) error {
 	return r.db.Create(user).Error
 }
 
-func (r *userRepository) GetUser(email string) (bool, error) {
+func (r *userRepository) GetUser(email string) (*models.User, error) {
 	var user models.User
 	err := r.db.Where("email=?", email).First(&user).Error
-	if err == nil {
-		return true, nil
-	} else if errors.Is(err, gorm.ErrRecordNotFound) {
-		return false, nil
-	} else {
-		return false, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
 	}
+	return &user, nil
 }

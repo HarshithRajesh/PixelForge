@@ -62,17 +62,14 @@ func TestSignUpHandler_ServiceFails(t *testing.T) {
 	}
 	jsonBody, _ := json.Marshal(body)
 
-	// tell mock: when SignUp is called, return an error
 	mockService.On("SignUp", mock.Anything).Return(errors.New("user exists"))
 
 	req := httptest.NewRequest(http.MethodPost, "/signup", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
-	// ACT
 	router.ServeHTTP(w, req)
 
-	// ASSERT
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
 	// check the response body contains the error

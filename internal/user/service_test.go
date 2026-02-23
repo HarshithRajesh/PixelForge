@@ -13,100 +13,18 @@ type MockUserRepository struct {
 	mock.Mock
 }
 
-func (m *MockUserRepository) GetUser(email string) (bool, error) {
+func (m *MockUserRepository) GetUser(email string) (*models.User, error) {
 	args := m.Called(email)
-	return args.Bool(0), args.Error(1)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.User), args.Error(1)
 }
 
 func (m *MockUserRepository) CreateUser(user *models.User) error {
 	args := m.Called(user)
 	return args.Error(0)
 }
-
-// func TestSignUp_PasswordDontMatch(t *testing.T) {
-// 	mockrepo := new(MockUserRepository)
-// 	svc := service.NewUserService(mockrepo)
-//
-// 	user := &models.User{
-// 		Email:           "example@test.com",
-// 		Password:        "123",
-// 		ConfirmPassword: "wrong123",
-// 	}
-//
-// 	err := svc.SignUp(user)
-// 	assert.EqualError(t, err, "password are not matching")
-// 	mockrepo.AssertNotCalled(t, "GetUser")
-// 	mockrepo.AssertNotCalled(t, "CreateUser")
-// }
-//
-// func TestSignUp_UserAlreadyExists(t *testing.T) {
-// 	mockrepo := new(MockUserRepository)
-// 	svc := service.NewUserService(mockrepo)
-//
-// 	user := &models.User{
-// 		Email:           "example@test.com",
-// 		Password:        "123",
-// 		ConfirmPassword: "123",
-// 	}
-//
-// 	mockrepo.On("GetUser", "example@test.com").Return(true, nil)
-// 	err := svc.SignUp(user)
-// 	assert.EqualError(t, err, "user exists")
-// 	mockrepo.AssertNotCalled(t, "CreateUser")
-// 	mockrepo.AssertExpectations(t)
-// }
-//
-// func TestSignUp_GetUserDBError(t *testing.T) {
-// 	mockrepo := new(MockUserRepository)
-// 	svc := service.NewUserService(mockrepo)
-//
-// 	user := &models.User{
-// 		Email:           "example@test.com",
-// 		Password:        "123",
-// 		ConfirmPassword: "123",
-// 	}
-//
-// 	mockrepo.On("GetUser", "example@test.com").Return(false, errors.New("db connection lost"))
-// 	err := svc.SignUp(user)
-//
-// 	assert.EqualError(t, err, "db connection lost")
-// 	mockrepo.AssertNotCalled(t, "CreateUser")
-// 	mockrepo.AssertExpectations(t)
-// }
-//
-// func TestSignUp_CreateUserFails(t *testing.T) {
-// 	mockrepo := new(MockUserRepository)
-// 	svc := service.NewUserService(mockrepo)
-//
-// 	user := &models.User{
-// 		Email:           "example@test.com",
-// 		Password:        "123",
-// 		ConfirmPassword: "123",
-// 	}
-// 	mockrepo.On("GetUser", "example@test.com").Return(false, nil)
-// 	mockrepo.On("CreateUser", user).Return(errors.New("insert failed"))
-//
-// 	err := svc.SignUp(user)
-// 	assert.EqualError(t, err, "insert failed")
-// 	mockrepo.AssertExpectations(t)
-// }
-//
-// func TestSignUp_Success(t *testing.T) {
-// 	mockrepo := new(MockUserRepository)
-// 	svc := service.NewUserService(mockrepo)
-//
-// 	user := &models.User{
-// 		Email:           "example@test.com",
-// 		Password:        "123",
-// 		ConfirmPassword: "123",
-// 	}
-// 	mockrepo.On("GetUser", "example@test.com").Return(false, nil)
-// 	mockrepo.On("CreateUser", user).Return(nil)
-//
-// 	err := svc.SignUp(user)
-// 	assert.NoError(t, err)
-// 	mockrepo.AssertExpectations(t)
-// }
 
 func TestSignUp(t *testing.T) {
 	tests := []struct {
@@ -132,7 +50,14 @@ func TestSignUp(t *testing.T) {
 				ConfirmPassword: "abc123",
 			},
 			mockSetup: func(m *MockUserRepository) {
-				m.On("GetUser", "alice@example.com").Return(true, nil)
+				existingUser := &models.User{
+					ID:              1,
+					Name:            "sample",
+					Email:           "alice@example.com",
+					Password:        "123",
+					ConfirmPassword: "123",
+				}
+				m.On("GetUser", "alice@example.com").Return(existingUser, nil)
 			},
 			expectedError: "user exists",
 		},
@@ -144,7 +69,7 @@ func TestSignUp(t *testing.T) {
 				ConfirmPassword: "abc123",
 			},
 			mockSetup: func(m *MockUserRepository) {
-				m.On("GetUser", "alice@example.com").Return(false, nil)
+				m.On("GetUser", "alice@example.com").Return(nil, nil)
 				m.On("CreateUser", mock.Anything).Return(nil)
 			},
 			expectedError: "", // empty means we expect no error
