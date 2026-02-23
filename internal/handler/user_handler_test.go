@@ -24,10 +24,16 @@ func (m *MockUserService) SignUp(user *models.User) error {
 	return args.Error(0)
 }
 
+func (m *MockUserService) Login(user *models.Login) error {
+	args := m.Called(user)
+	return args.Error(0)
+}
+
 func setupRouter(handler *handler.UserHandler) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.POST("/signup", handler.SignUp)
+	r.POST("/login", handler.Login)
 	return r
 }
 
@@ -55,10 +61,9 @@ func TestSignUpHandler_ServiceFails(t *testing.T) {
 	router := setupRouter(handler)
 
 	// valid JSON body
-	body := models.User{
-		Email:           "alice@example.com",
-		Password:        "abc123",
-		ConfirmPassword: "abc123",
+	body := models.Login{
+		Email:    "alice@example.com",
+		Password: "abc123",
 	}
 	jsonBody, _ := json.Marshal(body)
 
@@ -86,10 +91,9 @@ func TestSignUpHandler_Success(t *testing.T) {
 	handler := handler.NewUserHandler(mockService)
 	router := setupRouter(handler)
 
-	body := models.User{
-		Email:           "alice@example.com",
-		Password:        "abc123",
-		ConfirmPassword: "abc123",
+	body := models.Login{
+		Email:    "alice@example.com",
+		Password: "abc123",
 	}
 	jsonBody, _ := json.Marshal(body)
 
@@ -112,4 +116,76 @@ func TestSignUpHandler_Success(t *testing.T) {
 	assert.Equal(t, "User Create Successfully", response["message"])
 
 	mockService.AssertExpectations(t)
+}
+
+func TestLoginHandler_InvalidBody(t *testing.T) {
+	mockService := new(MockUserService)
+	handler := handler.NewUserHandler(mockService)
+	router := setupRouter(handler)
+
+	body := `{"email":"invalid`
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	mockService.AssertNotCalled(t, "Login")
+}
+
+func TestLoginHandler_Fails(t *testing.T) {
+	mockService := new(MockUserService)
+	handler := handler.NewUserHandler(mockService)
+	router := setupRouter(handler)
+
+	// valid JSON body
+	body := models.User{
+		Email:    "alice@example.com",
+		Password: "abc123",
+	}
+	jsonBody, _ := json.Marshal(body)
+
+	mockService.On("Login", mock.Anything).Return(errors.New("user doesnt exist"))
+
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	var response map[string]string
+	json.NewDecoder(w.Body).Decode(&response)
+	assert.Equal(t, "user doesnt exist", response["error"])
+
+	mockService.AssertExpectations(t)
+}
+
+func TestLoginHandler_Success(t *testing.T) {
+	mockService := new(MockUserService)
+	handler := handler.NewUserHandler(mockService)
+	router := setupRouter(handler)
+
+	body := models.Login{
+		Email:    "alice@example.com",
+		Password: "123",
+	}
+	jsonBody, _ := json.Marshal(body)
+
+	mockService.On("Login", mock.Anything).Return(nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]string
+	json.NewDecoder(w.Body).Decode(&response)
+	assert.Equal(t, "Login Successfull", response["message"])
 }
