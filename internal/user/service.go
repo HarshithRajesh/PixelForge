@@ -36,8 +36,7 @@ func (s *userService) SignUp(user *models.User) error {
 	}
 
 	if existingUser != nil {
-		log.Print("user already exists")
-		return errors.New("user already exists")
+		return errors.New("user exists")
 	}
 	user.Password, err = domain.HashPassword(user.Password)
 	if err != nil {
@@ -59,7 +58,7 @@ func (s *userService) Login(user *models.Login) error {
 		return err
 	}
 	if !domain.CheckPasswordHash(user.Password, existingUser.Password) {
-		return errors.New("password did not match")
+		return errors.New("invalid password")
 	}
 	return nil
 }
