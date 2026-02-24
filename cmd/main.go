@@ -22,7 +22,7 @@ func main() {
 	r := gin.Default()
 	r.GET("/health", processor.Health)
 	r.POST("/signup", userHandler.SignUp)
-	r.GET("/login", userHandler.Login)
+	r.POST("/login", userHandler.Login)
 	err := r.Run()
 	if err != nil {
 		log.Fatal(err)
