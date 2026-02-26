@@ -1,39 +1,41 @@
 // Package middleware for JWT authentication
+
 package middleware
 
 import (
-	"fmt"
-	"os"
-	"time"
+	"net/http"
+	"strings"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/HarshithRajesh/PixelForge/internal/domain"
+	"github.com/gin-gonic/gin"
 )
 
-var secretKey = []byte(os.Getenv("SECRET_KEY"))
+func AuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// get token from header
+		// frontend sends: Authorization: Bearer <token>
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing token"})
+			c.Abort() // stop the request here
+			return
+		}
 
-func createToken(username string) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
-		jwt.MapClaims{
-			"username": username,
-			"exp":      time.Now().Add(time.Hour * 24).Unix(),
-		})
+		// remove "Bearer " prefix
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
-	tokenString, err := token.SignedString(secretKey)
-	if err != nil {
-		return "", err
-	}
-	return tokenString, nil
-}
+		// validate the token
+		claims, err := domain.ValidateToken(tokenString)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+			c.Abort()
+			return
+		}
 
-func verifyToken(tokenString string) error {
-	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-		return secretKey, nil
-	})
-	if err != nil {
-		return err
+		// store user info in context so handlers can use it
+		c.Set("userID", claims.UserID)
+		c.Set("email", claims.Email)
+
+		c.Next() // continue to the actual handler
 	}
-	if !token.Valid {
-		return fmt.Errorf("invalid token")
-	}
-	return nil
 }
