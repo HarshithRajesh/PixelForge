@@ -46,12 +46,14 @@ func (h *UserHandler) Login(c *gin.Context) {
 		})
 		return
 	}
-	err = h.userService.Login(&user)
+	token, err := h.userService.Login(&user)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Login Successfull"})
+
+	c.SetCookie("token", token, 25*60*60, "/", "", false, true)
+	c.JSON(http.StatusOK, gin.H{"message": "Login Successfull", "token": token})
 }

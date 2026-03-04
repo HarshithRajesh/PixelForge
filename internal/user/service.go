@@ -12,7 +12,7 @@ import (
 
 type UserService interface {
 	SignUp(user *models.User) error
-	Login(user *models.Login) error
+	Login(user *models.Login) (string, error)
 }
 
 type userService struct {
@@ -49,16 +49,22 @@ func (s *userService) SignUp(user *models.User) error {
 	return nil
 }
 
-func (s *userService) Login(user *models.Login) error {
+func (s *userService) Login(user *models.Login) (string, error) {
 	var existingUser *models.User
 	existingUser, err := s.repo.GetUser(user.Email)
 	if existingUser == nil {
-		return errors.New("user doesnt exist")
+		return "", errors.New("user doesnt exist")
 	} else if err != nil {
-		return err
+		return "", err
 	}
 	if !domain.CheckPasswordHash(user.Password, existingUser.Password) {
-		return errors.New("invalid password")
+		return "", errors.New("invalid password")
 	}
-	return nil
+
+	token, err := domain.GenerateToken(user.Email)
+	if err != nil {
+		return "", errors.New("failed to generate token")
+	}
+
+	return token, nil
 }
