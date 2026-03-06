@@ -55,5 +55,5 @@ func (h *UserHandler) Login(c *gin.Context) {
 	}
 
 	c.SetCookie("token", token, 25*60*60, "/", "", false, true)
-	c.JSON(http.StatusOK, gin.H{"message": "Login Successfull", "token": token})
+	c.JSON(http.StatusOK, gin.H{"message": "Login Successfull"})
 }

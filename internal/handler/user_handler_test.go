@@ -24,9 +24,9 @@ func (m *MockUserService) SignUp(user *models.User) error {
 	return args.Error(0)
 }
 
-func (m *MockUserService) Login(user *models.Login) error {
+func (m *MockUserService) Login(user *models.Login) (string, error) {
 	args := m.Called(user)
-	return args.Error(0)
+	return args.String(0), args.Error(1)
 }
 
 func setupRouter(h *handler.UserHandler) *gin.Engine {
@@ -128,6 +128,7 @@ func TestLoginHandler(t *testing.T) {
 		mockSetup      func(m *MockUserService)
 		expectedStatus int
 		expectedBody   map[string]string
+		expectedCookie string
 	}{
 		{
 			name: "invalid json body",
@@ -136,6 +137,7 @@ func TestLoginHandler(t *testing.T) {
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectedBody:   nil,
+			expectedCookie: "",
 		},
 		{
 			name: "user does not exist",
@@ -144,10 +146,11 @@ func TestLoginHandler(t *testing.T) {
 				Password: "abc123",
 			},
 			mockSetup: func(m *MockUserService) {
-				m.On("Login", mock.Anything).Return(errors.New("user doesnt exist"))
+				m.On("Login", mock.Anything).Return("", errors.New("user doesnt exist"))
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectedBody:   map[string]string{"error": "user doesnt exist"},
+			expectedCookie: "",
 		},
 		{
 			name: "success",
@@ -156,10 +159,11 @@ func TestLoginHandler(t *testing.T) {
 				Password: "123",
 			},
 			mockSetup: func(m *MockUserService) {
-				m.On("Login", mock.Anything).Return(nil)
+				m.On("Login", mock.Anything).Return("mocked.jwt.token", nil)
 			},
 			expectedStatus: http.StatusOK,
 			expectedBody:   map[string]string{"message": "Login Successfull"},
+			expectedCookie: "token",
 		},
 	}
 
@@ -178,12 +182,27 @@ func TestLoginHandler(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
-
 			if tt.expectedBody != nil {
 				var response map[string]string
 				json.NewDecoder(w.Body).Decode(&response)
 				assert.Equal(t, tt.expectedBody, response)
-			} else {
+			}
+
+			// check cookie independently
+			if tt.expectedCookie != "" {
+				cookies := w.Result().Cookies()
+				found := false
+				for _, cookie := range cookies {
+					if cookie.Name == tt.expectedCookie {
+						found = true
+						assert.NotEmpty(t, cookie.Value)
+					}
+				}
+				assert.True(t, found, "expected cookie '%s' not found", tt.expectedCookie)
+			}
+
+			// check service not called only for invalid body case
+			if tt.expectedBody == nil && tt.expectedCookie == "" {
 				mockService.AssertNotCalled(t, "Login")
 			}
 

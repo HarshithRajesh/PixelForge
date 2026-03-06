@@ -101,6 +101,7 @@ func TestLogin(t *testing.T) {
 		name          string
 		input         *models.Login
 		mockSetup     func(mock *MockUserRepository)
+		expectedToken bool
 		expectedError string
 	}{
 		{
@@ -120,6 +121,7 @@ func TestLogin(t *testing.T) {
 				}
 				m.On("GetUser", "alice@example.com").Return(existingUser, nil)
 			},
+			expectedToken: true,
 			expectedError: "",
 		},
 		{
@@ -138,6 +140,7 @@ func TestLogin(t *testing.T) {
 				}
 				m.On("GetUser", "alice@example.com").Return(existingUser, nil)
 			},
+			expectedToken: false,
 			expectedError: "invalid password",
 		},
 	}
@@ -148,10 +151,13 @@ func TestLogin(t *testing.T) {
 			tt.mockSetup(mockRepo)
 			svc := service.NewUserService(mockRepo)
 
-			err := svc.Login(tt.input)
+			token, err := svc.Login(tt.input)
 
 			if tt.expectedError == "" {
 				assert.NoError(t, err)
+				if tt.expectedToken {
+					assert.NotEmpty(t, token)
+				}
 			} else {
 				assert.EqualError(t, err, tt.expectedError) // ✅ fixed
 			}
