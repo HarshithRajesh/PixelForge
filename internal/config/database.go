@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/HarshithRajesh/PixelForge/internal/models"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"gorm.io/driver/postgres"
@@ -34,8 +35,8 @@ func ConnectDB() (*gorm.DB, error) {
 	}
 
 	fmt.Println("Database successfully connected to GORM")
-	// if err := db.AutoMigrate(&models.User{}); err != nil {
-	// 	log.Fatalf("Failed to migrate database: %v", err)
-	// }
+	if err := db.AutoMigrate(&models.User{}, &models.Image{}); err != nil {
+		log.Fatalf("Failed to migrate database: %v", err)
+	}
 	return db, nil
 }

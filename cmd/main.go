@@ -19,7 +19,8 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	userService := user.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
-
+	imageService := processor.NewImageManagement()
+	imageHandler := handler.NewImageManagementHandler(imageService)
 	r := gin.Default()
 	r.GET("/health", processor.Health)
 	r.POST("/signup", userHandler.SignUp)
@@ -29,6 +30,7 @@ func main() {
 	protected.Use(middleware.AuthMiddleware())
 	{
 		protected.GET("/profile", processor.Profile)
+		protected.POST("/image", imageHandler.ImageUpload)
 	}
 
 	err := r.Run()
