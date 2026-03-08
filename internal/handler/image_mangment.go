@@ -18,15 +18,16 @@ func NewImageManagementHandler(imgService processor.ImageManagement) *ImageManag
 func (h *ImageManagementHandler) ImageUpload(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "getting file error"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "getting file error here", "err": err.Error()})
 		return
 	}
 
-	err = h.imgService.UploadImage(c.Request.Context(), file)
+	email := c.MustGet("email").(string)
+	err = h.imgService.UploadImage(c.Request.Context(), file, email)
 	if err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "file was not sent to processor"})
+		c.JSON(http.StatusConflict, gin.H{"error": "file was not sent to processor", "err": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"error": "getting file "})
+	c.JSON(http.StatusOK, gin.H{"message": "image sent to save"})
 	return
 }

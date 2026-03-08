@@ -11,6 +11,7 @@ import (
 type UserRepository interface {
 	CreateUser(user *models.User) error
 	GetUser(email string) (*models.User, error)
+	SaveImageDB(metadata *models.Image) error
 }
 
 type userRepository struct {
@@ -35,4 +36,8 @@ func (r *userRepository) GetUser(email string) (*models.User, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (r *userRepository) SaveImageDB(metadata *models.Image) error {
+	return r.db.Create(metadata).Error
 }

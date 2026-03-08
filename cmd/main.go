@@ -9,6 +9,7 @@ import (
 	"github.com/HarshithRajesh/PixelForge/internal/processor"
 	"github.com/HarshithRajesh/PixelForge/internal/repository"
 	"github.com/HarshithRajesh/PixelForge/internal/user"
+	"github.com/HarshithRajesh/PixelForge/storage"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,7 +20,10 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	userService := user.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
-	imageService := processor.NewImageManagement()
+
+	store := storage.NewStorageRepository("storage")
+
+	imageService := processor.NewImageManagement(userRepo, store)
 	imageHandler := handler.NewImageManagementHandler(imageService)
 	r := gin.Default()
 	r.GET("/health", processor.Health)
