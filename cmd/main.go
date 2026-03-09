@@ -16,22 +16,32 @@ import (
 func main() {
 	gin.SetMode(gin.DebugMode)
 
+	rds := config.NewRedis()
+
 	db, _ := config.ConnectDB()
 	userRepo := repository.NewUserRepository(db)
-	userService := user.NewUserService(userRepo)
-	userHandler := handler.NewUserHandler(userService)
+	userService := user.NewUserService(userRepo, rds)
+	userHandler := handler.NewUserHandler(userService, rds)
 
 	store := storage.NewStorageRepository("storage")
 
 	imageService := processor.NewImageManagement(userRepo, store)
 	imageHandler := handler.NewImageManagementHandler(imageService)
 	r := gin.Default()
+
+	// r.Use(cors.New(cors.Config{
+	// 	// AllowOrigins:     []string{os.Getenv("FRONTEND_ORIGIN")},
+	// 	AllowMethods:     []string{"GET", "POST"},
+	// 	AllowHeaders:     []string{"Content-Type", "Authorization"},
+	// 	AllowCredentials: true,
+	// }))
+
 	r.GET("/health", processor.Health)
 	r.POST("/signup", userHandler.SignUp)
 	r.POST("/login", userHandler.Login)
 
 	protected := r.Group("/")
-	protected.Use(middleware.AuthMiddleware())
+	protected.Use(middleware.AuthMiddleware(rds))
 	{
 		protected.GET("/profile", processor.Profile)
 		protected.POST("/image", imageHandler.ImageUpload)

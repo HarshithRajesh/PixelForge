@@ -12,6 +12,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
+	"strconv"
 
 	"github.com/HarshithRajesh/PixelForge/internal/models"
 	"github.com/HarshithRajesh/PixelForge/internal/repository"
@@ -20,7 +21,7 @@ import (
 )
 
 type ImageManagement interface {
-	UploadImage(ctx context.Context, header *multipart.FileHeader, email string) error
+	UploadImage(ctx context.Context, header *multipart.FileHeader, userID string) error
 }
 
 type imageManagement struct {
@@ -35,7 +36,7 @@ func NewImageManagement(userRepo repository.UserRepository, store storage.Storag
 	}
 }
 
-func (i *imageManagement) UploadImage(ctx context.Context, header *multipart.FileHeader, email string) error {
+func (i *imageManagement) UploadImage(ctx context.Context, header *multipart.FileHeader, userID string) error {
 	file, err := header.Open()
 	if err != nil {
 		return errors.New("failed to open the file")
@@ -60,9 +61,7 @@ func (i *imageManagement) UploadImage(ctx context.Context, header *multipart.Fil
 
 	file.Seek(0, io.SeekStart)
 
-	user, _ := i.repo.GetUser(email)
 	ext := filepath.Ext(header.Filename)
-	userID := user.ID
 	newID := uuid.New().String()
 
 	if header.Size > 5*1024*1024 {
@@ -84,8 +83,12 @@ func (i *imageManagement) UploadImage(ctx context.Context, header *multipart.Fil
 	if err != nil {
 		return errors.New("Failed to decode the image config")
 	}
+	newuserID, err := strconv.ParseUint(userID, 10, 64)
+	if err != nil {
+		return errors.New("failed to convert userid from string to int")
+	}
 	imgMetadata := &models.Image{
-		UserID:         userID,
+		UserID:         uint(newuserID),
 		StoredFilename: header.Filename,
 		Path:           storagePath,
 		Size:           uint64(header.Size), // Convert int64 to uint64

@@ -1,15 +1,22 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
+
+type Redis struct {
+	Client *redis.Client
+}
 
 func init() {
 	err := godotenv.Load()
@@ -38,4 +45,26 @@ func ConnectDB() (*gorm.DB, error) {
 	// 	log.Fatalf("Failed to migrate database: %v", err)
 	// }
 	return db, nil
+}
+
+func NewRedis() *Redis {
+	addr := os.Getenv("REDDIS_ADDR")
+	if addr == "" {
+		addr = "localhost:6379"
+	}
+
+	rdb := redis.NewClient(&redis.Options{Addr: addr})
+	return &Redis{Client: rdb}
+}
+
+func (r *Redis) SetJTI(ctx context.Context, key, userID string, exp time.Time) error {
+	return r.Client.Set(ctx, key, userID, time.Until(exp)).Err()
+}
+
+func (r *Redis) DelJTI(ctx context.Context, key string) error {
+	return r.Client.Del(ctx, key).Err()
+}
+
+func (r *Redis) GetUserByJTI(ctx context.Context, key string) (string, error) {
+	return r.Client.Get(ctx, key).Result()
 }

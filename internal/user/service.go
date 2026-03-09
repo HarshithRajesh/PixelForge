@@ -2,26 +2,32 @@
 package user
 
 import (
+	"context"
 	"errors"
 	"log"
+	"strconv"
 
+	"github.com/HarshithRajesh/PixelForge/internal/config"
 	"github.com/HarshithRajesh/PixelForge/internal/domain"
+	"github.com/HarshithRajesh/PixelForge/internal/middleware"
 	"github.com/HarshithRajesh/PixelForge/internal/models"
 	"github.com/HarshithRajesh/PixelForge/internal/repository"
 )
 
 type UserService interface {
 	SignUp(user *models.User) error
-	Login(user *models.Login) (string, error)
+	Login(ctx context.Context, user *models.Login) (*middleware.Tokens, error)
 }
 
 type userService struct {
 	repo repository.UserRepository
+	rds  *config.Redis
 }
 
-func NewUserService(repo repository.UserRepository) UserService {
+func NewUserService(repo repository.UserRepository, rds *config.Redis) UserService {
 	return &userService{
 		repo: repo,
+		rds:  rds,
 	}
 }
 
@@ -49,22 +55,25 @@ func (s *userService) SignUp(user *models.User) error {
 	return nil
 }
 
-func (s *userService) Login(user *models.Login) (string, error) {
+func (s *userService) Login(ctx context.Context, user *models.Login) (*middleware.Tokens, error) {
 	var existingUser *models.User
 	existingUser, err := s.repo.GetUser(user.Email)
+	if err != nil {
+		return nil, err
+	}
 	if existingUser == nil {
-		return "", errors.New("user doesnt exist")
-	} else if err != nil {
-		return "", err
+		return nil, errors.New("user doesnt exist")
 	}
 	if !domain.CheckPasswordHash(user.Password, existingUser.Password) {
-		return "", errors.New("invalid password")
+		return nil, errors.New("invalid password")
 	}
-
-	token, err := domain.GenerateToken(user.Email)
+	userID := strconv.FormatUint(uint64(existingUser.ID), 10)
+	token, err := middleware.IssueTokens(userID)
 	if err != nil {
-		return "", errors.New("failed to generate token")
+		return nil, errors.New("failed to generate token")
 	}
-
+	if err := middleware.Persist(ctx, s.rds, token); err != nil {
+		return nil, err
+	}
 	return token, nil
 }
