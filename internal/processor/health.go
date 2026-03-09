@@ -13,6 +13,6 @@ func Health(c *gin.Context) {
 }
 
 func Profile(c *gin.Context) {
-	email := c.MustGet("email").(string)
+	email := c.MustGet("userID").(string)
 	c.JSON(http.StatusOK, gin.H{"message": "Protected route check", "email": email})
 }

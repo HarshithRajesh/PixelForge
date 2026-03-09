@@ -22,8 +22,8 @@ func (h *ImageManagementHandler) ImageUpload(c *gin.Context) {
 		return
 	}
 
-	email := c.MustGet("email").(string)
-	err = h.imgService.UploadImage(c.Request.Context(), file, email)
+	userID := c.MustGet("userID").(string)
+	err = h.imgService.UploadImage(c.Request.Context(), file, userID)
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "file was not sent to processor", "err": err.Error()})
 		return

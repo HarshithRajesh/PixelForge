@@ -29,6 +29,10 @@ func (m *MockUserService) Login(user *models.Login) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
+// func (m *MockUserService)Logout()error{
+// 	return args.Error(0)
+// }
+
 func setupRouter(h *handler.UserHandler) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()

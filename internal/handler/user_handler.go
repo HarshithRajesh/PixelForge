@@ -2,8 +2,11 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
+	"github.com/HarshithRajesh/PixelForge/internal/config"
+	"github.com/HarshithRajesh/PixelForge/internal/middleware"
 	"github.com/HarshithRajesh/PixelForge/internal/models"
 	"github.com/HarshithRajesh/PixelForge/internal/user"
 	"github.com/gin-gonic/gin"
@@ -11,10 +14,11 @@ import (
 
 type UserHandler struct {
 	userService user.UserService
+	rds         *config.Redis
 }
 
-func NewUserHandler(userService user.UserService) *UserHandler {
-	return &UserHandler{userService: userService}
+func NewUserHandler(userService user.UserService, rds *config.Redis) *UserHandler {
+	return &UserHandler{userService: userService, rds: rds}
 }
 
 func (h *UserHandler) SignUp(c *gin.Context) {
@@ -46,29 +50,31 @@ func (h *UserHandler) Login(c *gin.Context) {
 		})
 		return
 	}
-	token, err := h.userService.Login(&user)
+	token, err := h.userService.Login(c.Request.Context(), &user)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
-
-	c.SetCookie("token", token, 25*60*60, "/", "", false, true)
+	middleware.SetAuthCookies(c, token)
 	c.JSON(http.StatusOK, gin.H{"message": "Login Successfull"})
 }
 
 func (h *UserHandler) Logout(c *gin.Context) {
-	token, err := c.Cookie("token")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	acc, _ := c.Cookie("access_token")
+	ref, _ := c.Cookie("refresh_token")
+	ctx := context.Background()
+	if acc != "" {
+		if claims, err := middleware.ParseAccess(acc); err != nil {
+			_ = h.rds.DelJTI(ctx, "access:"+claims.ID)
+		}
 	}
-	err = h.userService.Logout(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	if ref != "" {
+		if claims, err := middleware.ParseAccess(ref); err != nil {
+			_ = h.rds.DelJTI(ctx, "refresh:"+claims.ID)
+		}
 	}
-	c.SetCookie("token", "", -1, "/", true, true)
-	c.JSON(http.StatusOK, gin.H{"message": "Logout Successfull"})
+	middleware.ClearAuthCookies(c)
+	c.JSON(http.StatusOK, gin.H{"message": "Logout Successful"})
 }
