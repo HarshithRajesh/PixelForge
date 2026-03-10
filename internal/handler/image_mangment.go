@@ -2,7 +2,9 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
+	"github.com/HarshithRajesh/PixelForge/internal/models"
 	"github.com/HarshithRajesh/PixelForge/internal/processor"
 	"github.com/gin-gonic/gin"
 )
@@ -30,4 +32,20 @@ func (h *ImageManagementHandler) ImageUpload(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "image sent to save"})
 	return
+}
+
+func (h *ImageManagementHandler) ListImages(c *gin.Context) {
+	userIDStr := c.MustGet("userID").(string)
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	var images []*models.Image
+	images, err = h.imgService.ListImages(uint(userID))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"List of Images": images})
 }

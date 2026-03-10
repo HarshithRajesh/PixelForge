@@ -43,8 +43,10 @@ func main() {
 	protected := r.Group("/")
 	protected.Use(middleware.AuthMiddleware(rds))
 	{
+		protected.GET("/logout", userHandler.Logout)
 		protected.GET("/profile", processor.Profile)
-		protected.POST("/image", imageHandler.ImageUpload)
+		protected.POST("/upload_image", imageHandler.ImageUpload)
+		protected.GET("/images", imageHandler.ListImages)
 	}
 
 	err := r.Run()

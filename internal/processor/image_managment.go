@@ -22,6 +22,7 @@ import (
 
 type ImageManagement interface {
 	UploadImage(ctx context.Context, header *multipart.FileHeader, userID string) error
+	ListImages(userID uint) ([]*models.Image, error)
 }
 
 type imageManagement struct {
@@ -68,13 +69,13 @@ func (i *imageManagement) UploadImage(ctx context.Context, header *multipart.Fil
 		return errors.New("file too large, reduce the size of the image and upload")
 	}
 
-	storagePath := fmt.Sprintf("%d/%s%s", userID, newID, ext)
+	storagePath := fmt.Sprintf("%s%s", newID, ext)
 
 	fmt.Print(header.Filename)
 	fmt.Print("Image recieved")
-	err = i.storageRepo.Save(storagePath, header)
+	err = i.storageRepo.Save(storagePath, userID, header)
 	if err != nil {
-		return errors.New("Failed to save the image to the disk")
+		return err
 	}
 	if _, err := file.Seek(0, 0); err != nil {
 		return err
@@ -101,4 +102,8 @@ func (i *imageManagement) UploadImage(ctx context.Context, header *multipart.Fil
 		return errors.New("Failed to save the image in Database")
 	}
 	return nil
+}
+
+func (i *imageManagement) ListImages(userID uint) ([]*models.Image, error) {
+	return i.repo.GetAllImageData(userID)
 }

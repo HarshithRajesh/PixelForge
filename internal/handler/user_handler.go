@@ -65,16 +65,17 @@ func (h *UserHandler) Logout(c *gin.Context) {
 	acc, _ := c.Cookie("access_token")
 	ref, _ := c.Cookie("refresh_token")
 	ctx := context.Background()
+
 	if acc != "" {
-		if claims, err := middleware.ParseAccess(acc); err != nil {
+		if claims, err := middleware.ParseAccess(acc); err == nil {
 			_ = h.rds.DelJTI(ctx, "access:"+claims.ID)
 		}
 	}
 	if ref != "" {
-		if claims, err := middleware.ParseAccess(ref); err != nil {
+		if claims, err := middleware.ParseRefresh(ref); err == nil {
 			_ = h.rds.DelJTI(ctx, "refresh:"+claims.ID)
 		}
 	}
 	middleware.ClearAuthCookies(c)
-	c.JSON(http.StatusOK, gin.H{"message": "Logout Successful"})
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
