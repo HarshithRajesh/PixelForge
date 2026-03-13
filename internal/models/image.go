@@ -20,6 +20,10 @@ type TransformRequest struct {
 	Params    map[string]int
 }
 
+type URIParam struct {
+	ID string `uri:"id" binding:"required"`
+}
+
 // controller
 //    ↓
 // service.TransformImage(imageID, request)

@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/HarshithRajesh/PixelForge/internal/models"
 	"github.com/HarshithRajesh/PixelForge/internal/repository"
@@ -24,8 +25,7 @@ import (
 type ImageManagement interface {
 	UploadImage(ctx context.Context, header *multipart.FileHeader, userID string) error
 	ListImages(userID uint) ([]*models.Image, error)
-	Transform(imageID string, userID string, req *models.TransformRequest) error
-	// GetImageDimensions(data []byte) (int, int, error)
+	Transform(imageID *models.URIParam, userID string, req *models.TransformRequest) error
 }
 
 type imageManagement struct {
@@ -34,10 +34,11 @@ type imageManagement struct {
 	processor   ImageTransformation
 }
 
-func NewImageManagement(userRepo repository.UserRepository, store storage.StorageRepository) ImageManagement {
+func NewImageManagement(userRepo repository.UserRepository, store storage.StorageRepository, processor ImageTransformation) ImageManagement {
 	return &imageManagement{
 		repo:        userRepo,
 		storageRepo: store,
+		processor:   processor,
 	}
 }
 
@@ -112,21 +113,25 @@ func (i *imageManagement) ListImages(userID uint) ([]*models.Image, error) {
 	return i.repo.GetAllImageData(userID)
 }
 
-func (i *imageManagement) Transform(imageID string, userID string, req *models.TransformRequest) error {
-	var image models.Image
-	image, err := i.repo.GetImage(userID, imageID)
+func (i *imageManagement) Transform(imageID *models.URIParam, userID string, req *models.TransformRequest) error {
+	var image *models.Image
+	image, err := i.repo.GetImage(imageID.ID, userID)
 	if err != nil {
 		return err
 	}
-	data, err := i.storageRepo.Read(image.Path)
+	fmt.Println(image)
+	img, format, err := i.storageRepo.Read(image.Path, userID)
 	if err != nil {
 		return err
 	}
-	dataTransformed, err := i.processor.Process(req, data)
+	fmt.Println("Image found")
+	dataTransformed, err := i.processor.Process(req, img, format)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	err = i.storageRepo.SaveTransformedImage(image.Path, dataTransformed)
+	newFilename := fmt.Sprintf("transformed_%d_%s", time.Now().Unix(), image.StoredFilename)
+	newPath := filepath.Join(filepath.Dir(image.Path), newFilename)
+	err = i.storageRepo.SaveTransformedImage(userID, newPath, dataTransformed)
 	if err != nil {
 		return err
 	}
@@ -137,8 +142,8 @@ func (i *imageManagement) Transform(imageID string, userID string, req *models.T
 	w, h, err := i.GetImageDimensions(dataTransformed)
 	imgMetadata := &models.Image{
 		UserID:         uint(newuserID),
-		StoredFilename: image.StoredFilename,
-		Path:           image.Path,
+		StoredFilename: newFilename,
+		Path:           newPath,
 		Size:           uint64(len(dataTransformed)), // Convert int64 to uint64
 		MimeType:       image.MimeType,
 		Width:          w,

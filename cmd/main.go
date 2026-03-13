@@ -1,6 +1,8 @@
 package main
 
 import (
+	_ "image/jpeg"
+	_ "image/png"
 	"log"
 
 	"github.com/HarshithRajesh/PixelForge/internal/config"
@@ -24,8 +26,8 @@ func main() {
 	userHandler := handler.NewUserHandler(userService, rds)
 
 	store := storage.NewStorageRepository("storage")
-	pros := processor.NewImageTransformation()
-	imageService := processor.NewImageManagement(userRepo, store, pros)
+	proc := processor.NewImageTransformation()
+	imageService := processor.NewImageManagement(userRepo, store, proc)
 	imageHandler := handler.NewImageManagementHandler(imageService)
 	r := gin.Default()
 
@@ -47,6 +49,7 @@ func main() {
 		protected.GET("/profile", processor.Profile)
 		protected.POST("/upload_image", imageHandler.ImageUpload)
 		protected.GET("/images", imageHandler.ListImages)
+		protected.POST("/transform/:id", imageHandler.Transform)
 	}
 
 	err := r.Run()

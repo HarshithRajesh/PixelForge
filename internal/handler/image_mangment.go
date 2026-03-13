@@ -49,3 +49,26 @@ func (h *ImageManagementHandler) ListImages(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"List of Images": images})
 }
+
+func (h *ImageManagementHandler) Transform(c *gin.Context) {
+	userIDStr := c.MustGet("userID").(string)
+
+	var uri models.URIParam
+	if err := c.ShouldBindUri(&uri); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid URI parameters: " + err.Error()})
+		return
+	}
+
+	var req models.TransformRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON body: " + err.Error()})
+		return
+	}
+
+	if err := h.imgService.Transform(&uri, userIDStr, &req); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Image Transform Successful!!!"})
+}

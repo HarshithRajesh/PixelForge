@@ -3,6 +3,7 @@ package repository
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/HarshithRajesh/PixelForge/internal/models"
 	"gorm.io/gorm"
@@ -13,6 +14,7 @@ type UserRepository interface {
 	GetUser(email string) (*models.User, error)
 	SaveImageDB(metadata *models.Image) error
 	GetAllImageData(userID uint) ([]*models.Image, error)
+	GetImage(imageID string, userID string) (*models.Image, error)
 }
 
 type userRepository struct {
@@ -53,4 +55,20 @@ func (r *userRepository) GetAllImageData(userID uint) ([]*models.Image, error) {
 		return nil, err
 	}
 	return images, nil
+}
+
+func (r *userRepository) GetImage(imageID string, userID string) (*models.Image, error) {
+	newuserID, err := strconv.ParseUint(userID, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	nuserID := uint(newuserID)
+	var image *models.Image
+	result := r.db.Where("id = ? AND user_id = ?", imageID, nuserID).First(&image)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return image, nil
 }

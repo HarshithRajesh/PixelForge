@@ -3,6 +3,10 @@ package storage
 
 import (
 	"errors"
+	"fmt"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"mime/multipart"
 	"os"
@@ -11,8 +15,8 @@ import (
 
 type StorageRepository interface {
 	Save(path string, userID string, file *multipart.FileHeader) error
-	Read(path string) ([]byte, error)
-	SaveTransformedImage(path string, data []byte) error
+	Read(path string, userID string) (image.Image, string, error)
+	SaveTransformedImage(userID string, path string, data []byte) error
 }
 
 type storageRepository struct {
@@ -47,19 +51,28 @@ func (s *storageRepository) Save(path string, userID string, file *multipart.Fil
 	return nil
 }
 
-func (s *storageRepository) Read(path string) ([]byte, error) {
-	data, err := os.ReadFile(path)
+func (s *storageRepository) Read(path string, userID string) (image.Image, string, error) {
+	fullpath := filepath.Join(s.RootDir, userID, path)
+	file, err := os.Open(fullpath)
 	if err != nil {
-		return nil, err
+		return nil, "", errors.New("file not found ")
 	}
-	return data, nil
+	defer file.Close()
+	file.Seek(0, 0)
+	img, format, err := image.Decode(file)
+	if err != nil {
+		return nil, "", fmt.Errorf("Format error in decoding %w", err)
+	}
+	return img, format, nil
 }
 
-func (s *storageRepository) SaveTransformedImage(path string, data []byte) error {
-	dst, err := os.Create(path)
+func (s *storageRepository) SaveTransformedImage(userID string, path string, data []byte) error {
+	fullpath := filepath.Join(s.RootDir, userID, path)
+	dst, err := os.Create(fullpath)
 	if err != nil {
 		return errors.New("failed to save the transformed Image")
 	}
+
 	defer dst.Close()
 	return nil
 }
