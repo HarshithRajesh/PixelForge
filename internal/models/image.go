@@ -14,3 +14,22 @@ type Image struct {
 	Width          int    `gorm:"column:width"`
 	Height         int    `gorm:"column:height"`
 }
+
+type TransformRequest struct {
+	Operation string
+	Params    map[string]int
+}
+
+// controller
+//    ↓
+// service.TransformImage(imageID, request)
+//    ↓
+// repository.FindImage(imageID)
+//    ↓
+// storage.ReadFile()
+//    ↓
+// processor.Apply(operation)
+//    ↓
+// storage.SaveFile()
+//    ↓
+// repository.Save(newImage)

@@ -24,8 +24,8 @@ func main() {
 	userHandler := handler.NewUserHandler(userService, rds)
 
 	store := storage.NewStorageRepository("storage")
-
-	imageService := processor.NewImageManagement(userRepo, store)
+	pros := processor.NewImageTransformation()
+	imageService := processor.NewImageManagement(userRepo, store, pros)
 	imageHandler := handler.NewImageManagementHandler(imageService)
 	r := gin.Default()
 

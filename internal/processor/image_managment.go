@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -23,11 +24,14 @@ import (
 type ImageManagement interface {
 	UploadImage(ctx context.Context, header *multipart.FileHeader, userID string) error
 	ListImages(userID uint) ([]*models.Image, error)
+	Transform(imageID string, userID string, req *models.TransformRequest) error
+	// GetImageDimensions(data []byte) (int, int, error)
 }
 
 type imageManagement struct {
 	repo        repository.UserRepository
 	storageRepo storage.StorageRepository
+	processor   ImageTransformation
 }
 
 func NewImageManagement(userRepo repository.UserRepository, store storage.StorageRepository) ImageManagement {
@@ -106,4 +110,53 @@ func (i *imageManagement) UploadImage(ctx context.Context, header *multipart.Fil
 
 func (i *imageManagement) ListImages(userID uint) ([]*models.Image, error) {
 	return i.repo.GetAllImageData(userID)
+}
+
+func (i *imageManagement) Transform(imageID string, userID string, req *models.TransformRequest) error {
+	var image models.Image
+	image, err := i.repo.GetImage(userID, imageID)
+	if err != nil {
+		return err
+	}
+	data, err := i.storageRepo.Read(image.Path)
+	if err != nil {
+		return err
+	}
+	dataTransformed, err := i.processor.Process(req, data)
+	if err != nil {
+		return nil, err
+	}
+	err = i.storageRepo.SaveTransformedImage(image.Path, dataTransformed)
+	if err != nil {
+		return err
+	}
+	newuserID, err := strconv.ParseUint(userID, 10, 64)
+	if err != nil {
+		return errors.New("failed to convert userid from string to int")
+	}
+	w, h, err := i.GetImageDimensions(dataTransformed)
+	imgMetadata := &models.Image{
+		UserID:         uint(newuserID),
+		StoredFilename: image.StoredFilename,
+		Path:           image.Path,
+		Size:           uint64(len(dataTransformed)), // Convert int64 to uint64
+		MimeType:       image.MimeType,
+		Width:          w,
+		Height:         h,
+	}
+
+	err = i.repo.SaveImageDB(imgMetadata)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (i *imageManagement) GetImageDimensions(data []byte) (int, int, error) {
+	// DecodeConfig reads only the image header (fast)
+	config, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return 0, 0, err
+	}
+	return config.Width, config.Height, nil
 }
